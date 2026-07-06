@@ -1,6 +1,9 @@
 from fastapi import FastAPI, HTTPException
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
 import os
+import json
 import uuid
 from typing import Optional, List
 from app.agents.graph import agent_graph
@@ -13,6 +16,9 @@ app = FastAPI(
     version="1.0.0"
 )
 
+# Mount static files folder
+app.mount("/static", StaticFiles(directory="app/static"), name="static")
+
 class ReviewRequest(BaseModel):
     file_path: str
     code_content: str
@@ -22,10 +28,11 @@ class PatchRequest(BaseModel):
     file_path: str
     original_code: str
     corrected_code: str
+    full_code: Optional[str] = None
 
 @app.get("/")
 def read_root():
-    return {"status": "running", "service": "CodeGuardian AI"}
+    return FileResponse("app/static/index.html")
 
 @app.post("/review")
 def trigger_code_review(payload: ReviewRequest):
@@ -70,11 +77,34 @@ def trigger_code_review(payload: ReviewRequest):
         # Invoke Graph
         result = agent_graph.invoke(initial_state)
         
+        final_report = result.get("final_report", "No report generated.")
+        is_passed = bool(result.get("passed", False)) and "FAILED" not in final_report[:150].upper()
+        
+        # Write debug logs to disk for inspection
+        try:
+            os.makedirs("scratch", exist_ok=True)
+            with open("scratch/debug_reports.json", "w", encoding="utf-8") as f:
+                json.dump({
+                    "passed": is_passed,
+                    "final_report": final_report,
+                    "security_report": result.get("security_report", ""),
+                    "quality_report": result.get("quality_report", ""),
+                    "test_report": result.get("test_report", ""),
+                    "doc_report": result.get("doc_report", "")
+                }, f, indent=2)
+        except Exception as ex:
+            print(f"Failed debug write: {ex}")
+            
         return {
             "success": True,
             "file_reviewed": payload.file_path,
             "static_issues_count": len(static_issues),
-            "final_report": result.get("final_report", "No report generated."),
+            "passed": is_passed,
+            "final_report": final_report,
+            "security_report": result.get("security_report", ""),
+            "quality_report": result.get("quality_report", ""),
+            "test_report": result.get("test_report", ""),
+            "doc_report": result.get("doc_report", ""),
             "proposed_fixes": result.get("proposed_fixes", [])
         }
         
@@ -93,8 +123,19 @@ def apply_fix_endpoint(payload: PatchRequest):
     """
     Applies a generated code patch to a local file.
     """
-    print(f"Received request to apply patch to file: {payload.file_path}")
-    
+    # If the file does not exist locally, write the initial full code first
+    if not os.path.exists(payload.file_path) and payload.full_code:
+        try:
+            # Create folder structure if nested
+            dir_name = os.path.dirname(payload.file_path)
+            if dir_name:
+                os.makedirs(dir_name, exist_ok=True)
+            with open(payload.file_path, "w", encoding="utf-8") as f:
+                f.write(payload.full_code)
+            print(f"Initialized non-existent file {payload.file_path} with initial editor code.")
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Failed to create file: {e}")
+
     success = apply_code_patch(
         file_path=payload.file_path,
         original_code=payload.original_code,

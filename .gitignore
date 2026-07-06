@@ -19,3 +19,5 @@ temp_src/
 *.log
 review_report.md
 test_bad_code.py
+scratch/
+auth_service.py

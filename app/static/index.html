@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CodeGuardian AI — Enterprise Code Audit & DevSecOps Platform</title>
+    <link rel="stylesheet" href="/static/styles.css?v=1.2.6">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500;600&display=swap" rel="stylesheet">
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Monaco Editor Loader -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.39.0/min/vs/loader.min.js"></script>
+</head>
+<body>
+    <!-- Background Orbs -->
+    <div class="ambient-glow">
+        <div class="orb orb-purple"></div>
+        <div class="orb orb-cyan"></div>
+    </div>
+
+    <div class="dashboard-container">
+        <!-- Sidebar Navigation -->
+        <aside class="sidebar-nav">
+            <div class="sidebar-header">
+                <div class="brand">
+                    <span class="brand-logo"><i data-lucide="shield-alert"></i></span>
+                    <span class="brand-name">CodeGuardian <span class="accent-text">AI</span></span>
+                </div>
+                <span class="version-tag">v1.2.0</span>
+            </div>
+
+            <div class="sidebar-menu">
+                <div class="menu-label">Active Scans</div>
+                <div class="nav-item active">
+                    <i data-lucide="terminal"></i>
+                    <span>Audit Workspace</span>
+                </div>
+            </div>
+
+            <div class="metrics-list">
+                <div class="metric-item">
+                    <div class="metric-lbl">Vulnerabilities</div>
+                    <div class="metric-val text-danger" id="side-vulns">--</div>
+                </div>
+            </div>
+
+            <div class="sidebar-footer">
+                <div class="status-box">
+                    <span class="status-dot"></span>
+                    <span class="status-txt">Engine Active</span>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Workspace Area -->
+        <main class="workspace-main">
+            <!-- Header Control Bar -->
+            <header class="top-header">
+                <div class="header-left">
+                    <h1>Code Audit Control Center</h1>
+                    <p class="subtitle">Submit python scripts to trigger parallel scanning, reasoning, and real-time auto-fixes.</p>
+                </div>
+                <div class="header-right">
+                    <div class="filepath-wrapper">
+                        <i data-lucide="file-code" class="file-icon"></i>
+                        <input type="text" id="file-path" value="auth_service.py" placeholder="e.g. auth_service.py">
+                    </div>
+                    <button id="run-audit-btn" class="btn btn-primary">
+                        <i data-lucide="play"></i>
+                        <span>Execute Pipeline</span>
+                    </button>
+                </div>
+            </header>
+
+            <!-- Grid Layout: Left Code Workspace, Right Results Workspace -->
+            <div class="workspace-grid">
+                
+                <!-- Left Column: Code Editor -->
+                <section class="workspace-left">
+                    <div class="glass-card editor-card">
+                        <div class="card-header">
+                            <div class="header-title">
+                                <i data-lucide="code-2" class="title-icon"></i>
+                                <h3>Source Code Editor</h3>
+                            </div>
+                            <span class="editor-lang">Python 3.x</span>
+                        </div>
+                        <div class="editor-container-wrapper">
+                            <!-- Monaco Editor mounts here -->
+                            <div id="monaco-editor-container"></div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Right Column: Results & Audits -->
+                <section class="workspace-right">
+                    
+                    <!-- Loading State overlay -->
+                    <div id="loading-overlay" class="glass-card loading-card hidden">
+                        <div class="loading-spinner"></div>
+                        <h3>Scanning & Analyzing Script</h3>
+                        <p>Orchestrating Security, Quality, Test-Gap, and Documentation agents in parallel graph reasoning...</p>
+                    </div>
+
+                    <!-- Empty State Landing -->
+                    <div id="empty-state" class="glass-card empty-card">
+                        <i data-lucide="scan-face" class="empty-icon"></i>
+                        <h3>Ready for Inspection</h3>
+                        <p>Paste your Python code inside the Monaco editor on the left, name your target file path, and click "Execute Pipeline" to run the audit.</p>
+                    </div>
+
+                    <!-- Audit Dashboard Results -->
+                    <div id="results-dashboard" class="results-dashboard hidden">
+                        
+                        <!-- Top Score Metrics -->
+                        <div class="metrics-grid">
+                            <div class="glass-card score-card">
+                                <h4>Audit Status</h4>
+                                <div class="status-badge-container">
+                                    <span class="badge" id="passed-failed-badge">PASSED</span>
+                                </div>
+                            </div>
+
+                            <div class="glass-card summary-card">
+                                <h4>Pipeline Audit Summary</h4>
+                                <div class="summary-body" id="findings-summary-paragraph">
+                                    <!-- Dynamic summary paragraph -->
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Multi-Agent Tab Controller -->
+                        <div class="tabs-container">
+                            <div class="tabs-bar">
+                                <button class="tab-btn active" data-tab="tab-findings">
+                                    <i data-lucide="layout-dashboard"></i>
+                                    <span>Summary</span>
+                                </button>
+                                <button class="tab-btn" data-tab="tab-security">
+                                    <i data-lucide="shield-alert"></i>
+                                    <span>Security Audit</span>
+                                </button>
+                                <button class="tab-btn" data-tab="tab-quality">
+                                    <i data-lucide="sparkles"></i>
+                                    <span>Code Quality</span>
+                                </button>
+                                <button class="tab-btn" data-tab="tab-testing">
+                                    <i data-lucide="beaker"></i>
+                                    <span>Unit Tests</span>
+                                </button>
+                                <button class="tab-btn" data-tab="tab-docs">
+                                    <i data-lucide="book-open"></i>
+                                    <span>Docs Audit</span>
+                                </button>
+                                <button class="tab-btn" data-tab="tab-fixes">
+                                    <i data-lucide="wrench"></i>
+                                    <span>Auto-Fixes</span>
+                                </button>
+                            </div>
+
+                            <div class="tab-content-wrapper">
+                                <!-- Summary Tab -->
+                                <div class="tab-pane active" id="tab-findings">
+                                    <div class="findings-markdown-view" id="report-view">
+                                        <!-- Unified markdown report rendered here -->
+                                    </div>
+                                </div>
+
+                                <!-- Security Agent Tab -->
+                                <div class="tab-pane" id="tab-security">
+                                    <div class="findings-markdown-view" id="security-report-view">
+                                        <!-- Security report details -->
+                                    </div>
+                                </div>
+
+                                <!-- Quality Agent Tab -->
+                                <div class="tab-pane" id="tab-quality">
+                                    <div class="findings-markdown-view" id="quality-report-view">
+                                        <!-- Quality report details -->
+                                    </div>
+                                </div>
+
+                                <!-- Testing Agent Tab -->
+                                <div class="tab-pane" id="tab-testing">
+                                    <div class="findings-markdown-view" id="test-report-view">
+                                        <!-- Test coverage and pytest code -->
+                                    </div>
+                                </div>
+
+                                <!-- Docs Agent Tab -->
+                                <div class="tab-pane" id="tab-docs">
+                                    <div class="findings-markdown-view" id="doc-report-view">
+                                        <!-- Docstring audit logs -->
+                                    </div>
+                                </div>
+
+                                <!-- Auto-Fixes Tab -->
+                                <div class="tab-pane" id="tab-fixes">
+                                    <div class="fixes-grid" id="fixes-view-list">
+                                        <!-- Proposed fixes with diff grids -->
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+                </section>
+
+            </div>
+        </main>
+    </div>
+
+    <!-- CodeGuardian JavaScript -->
+    <script src="/static/app.js?v=1.2.6"></script>
+</body>
+</html>
