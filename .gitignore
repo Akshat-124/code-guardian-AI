@@ -1,0 +1,21 @@
+# Environment variables and secrets
+.env
+.env.local
+
+# Python cache and byte-code
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+.venv/
+venv/
+
+# Vector database and data storage
+data/
+temp_src/
+
+# Generated logs and review reports
+*.log
+review_report.md
+test_bad_code.py
