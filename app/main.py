@@ -172,7 +172,7 @@ class GitHubWebhookPayload(BaseModel):
     action: str
     number: int
     pull_request: GitPullRequestDetail
-    changes: List[GitFileChange]
+    changes: Optional[List[GitFileChange]] = None
 
 
 @app.post("/webhook/github")
@@ -185,9 +185,50 @@ def github_webhook_endpoint(payload: GitHubWebhookPayload):
     print(f"[Webhook] Received PR webhook for PR #{payload.number} ('{payload.pull_request.title}')")
     
     annotations = []
+    file_changes = []
     
+    # 1. Check if payload changes list is populated (simulator call)
+    if payload.changes:
+        file_changes = payload.changes
+    else:
+        # 2. Fallback: Query local Git branch diff to find changed files in workspace
+        try:
+            import subprocess
+            branch = payload.pull_request.head.ref
+            print(f"[Webhook] Real GitHub PR webhook received. Querying git branch diff for: {branch}")
+            
+            # Retrieve name of changed files compared to origin/main
+            cmd = f"git diff --name-only origin/main...{branch}"
+            result = subprocess.run(cmd, shell=True, capture_output=True, text=True, cwd=".")
+            
+            if result.returncode == 0:
+                modified_files = [f.strip() for f in result.stdout.split('\n') if f.strip()]
+                print(f"[Webhook] Local Git diff returned modified files: {modified_files}")
+                
+                for filename in modified_files:
+                    # Filter for python files that exist on disk
+                    if filename.endswith(".py") and os.path.exists(filename):
+                        with open(filename, "r", encoding="utf-8") as f:
+                            content = f.read()
+                        file_changes.append(GitFileChange(filename=filename, content=content))
+            else:
+                print(f"[Webhook] Git diff command execution failed: {result.stderr}")
+        except Exception as git_err:
+            print(f"[Webhook] Failed to query local branch diff: {git_err}")
+
+    if not file_changes:
+        print("[Webhook] No modified python files detected in PR diff.")
+        return {
+            "status": "success",
+            "pr_number": payload.number,
+            "action": payload.action,
+            "overall_checks_passed": True,
+            "annotations": [],
+            "message": "No modified python files found."
+        }
+
     # Process each modified file in the changes list
-    for file_change in payload.changes:
+    for file_change in file_changes:
         filename = file_change.filename
         content = file_change.content
         

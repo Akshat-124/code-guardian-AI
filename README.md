@@ -15,6 +15,7 @@ CodeGuardian AI is an autonomous, agentic code auditing and review platform. Pow
   * **📝 Docs Audit:** Scans for missing public method docstrings and argument logs.
 * **Automated Patch Apply:** Highlights proposed refactoring changes in visual Git diff cards and lets you apply the fix in a single click.
 * **Aggressive Rate-Limit Mitigation:** Optimized single-node token bundling ensuring full compatibility with Groq's 6,000 TPM limit (saving over 4x on tokens).
+* **CI/CD Integration Gatekeeper:** Simulated webhook pipeline accepting Pull Request triggers and automating security review checks.
 
 ---
 
@@ -65,10 +66,14 @@ Open [http://127.0.0.1:8000](http://127.0.0.1:8000) in your web browser.
 
 ---
 
-## 🧪 Testing the Platform
+## 🧪 Testing the Platform via Interactive Dashboard
+
+* Load `http://127.0.0.1:8000/` in your browser.
+* Specify the file metadata (e.g. `math_utils.py`) in the top-left path input box.
+* Paste your target script in Monaco Editor, then click **Execute Pipeline**.
 
 ### A. Secure Code Test (Expect `PASSED ✅`)
-Copy and paste this clean factorial function to verify a passed build status:
+Copy and paste this clean factorial function:
 ```python
 def calculate_factorial(n: int) -> int:
     """
@@ -86,7 +91,7 @@ def calculate_factorial(n: int) -> int:
 ```
 
 ### B. Vulnerable Code Test (Expect `FAILED ❌`)
-Copy and paste this script to verify immediate SQL and Command Injection alert detection:
+Copy and paste this script containing SQL and Command Injection vulnerabilities:
 ```python
 import sqlite3
 import subprocess
@@ -100,4 +105,35 @@ def unsafe_login(username: str, system_cmd: str) -> None:
     
     # RCE
     subprocess.Popen(f"ping {system_cmd}", shell=True)
+```
+
+---
+
+## 🛡️ CI/CD Integration: GitHub Webhook PR Scanner
+
+Expose your local port and receive real-time webhook payloads from GitHub when Pull Requests are opened or modified.
+
+### 1. Set Up ngrok Tunnel
+1. Sign up on [ngrok.com](https://ngrok.com/) and download the utility.
+2. Authenticate your CLI session:
+   ```bash
+   ngrok config add-authtoken <YOUR_TOKEN>
+   ```
+3. Expose port 8000 to the public web:
+   ```bash
+   ngrok http 8000
+   ```
+4. Copy the generated forwarding HTTPS URL: `https://<ngrok-id>.ngrok-free.app`.
+
+### 2. Configure GitHub Repository Webhook
+1. Go to your GitHub repository Settings ➡️ **Webhooks** ➡️ **Add webhook**.
+2. **Payload URL:** Paste your ngrok URL and append `/webhook/github` (e.g. `https://<ngrok-id>.ngrok-free.app/webhook/github`).
+3. **Content type:** Select `application/json`.
+4. **Which events to trigger:** Select *"Let me select individual events"* and check **ONLY** `Pull requests` (uncheck `Pushes`).
+5. Click **Add webhook**. A green checkmark confirms GitHub successfully pinged your local FastAPI server.
+
+### 3. Run Simulated Webhook Audit
+Validate PR annotations on multi-file changes directly in your CLI using the test harness:
+```bash
+python tests/simulate_github_webhook.py
 ```
