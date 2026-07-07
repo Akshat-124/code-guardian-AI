@@ -149,3 +149,107 @@ def apply_fix_endpoint(payload: PatchRequest):
         )
         
     return {"success": True, "message": "Patch applied successfully!"}
+
+
+# --- GitHub Webhook CI/CD Integration Schemas ---
+class GitFileChange(BaseModel):
+    filename: str
+    content: str
+
+class GitPullRequestHead(BaseModel):
+    ref: str
+    sha: str
+
+class GitPullRequestBase(BaseModel):
+    ref: str
+
+class GitPullRequestDetail(BaseModel):
+    title: str
+    head: GitPullRequestHead
+    base: GitPullRequestBase
+
+class GitHubWebhookPayload(BaseModel):
+    action: str
+    number: int
+    pull_request: GitPullRequestDetail
+    changes: List[GitFileChange]
+
+
+@app.post("/webhook/github")
+def github_webhook_endpoint(payload: GitHubWebhookPayload):
+    """
+    Simulates receiving a GitHub Webhook Pull Request event.
+    Performs static scanning and LangGraph state review on all modified files,
+    returning structured check status and PR review comment overlays.
+    """
+    print(f"[Webhook] Received PR webhook for PR #{payload.number} ('{payload.pull_request.title}')")
+    
+    annotations = []
+    
+    # Process each modified file in the changes list
+    for file_change in payload.changes:
+        filename = file_change.filename
+        content = file_change.content
+        
+        # Save temp file for static scanner
+        temp_dir = "temp_src"
+        os.makedirs(temp_dir, exist_ok=True)
+        temp_file_path = os.path.join(temp_dir, f"pr_{payload.number}_{filename}")
+        
+        try:
+            with open(temp_file_path, "w", encoding="utf-8") as f:
+                f.write(content)
+                
+            # Run Bandit static scanning
+            static_issues = run_full_static_analysis(temp_file_path)
+            
+            # Setup LangGraph initial state
+            initial_state = {
+                "file_path": filename,
+                "code_content": content,
+                "diff_content": "",
+                "static_issues": static_issues,
+                "security_report": "",
+                "quality_report": "",
+                "test_report": "",
+                "doc_report": "",
+                "final_report": "",
+                "proposed_fixes": [],
+                "passed": False
+            }
+            
+            # Invoke review state machine
+            result = agent_graph.invoke(initial_state)
+            
+            final_report = result.get("final_report", "No report generated.")
+            is_passed = bool(result.get("passed", False)) and "FAILED" not in final_report[:150].upper()
+            
+            annotations.append({
+                "filename": filename,
+                "passed": is_passed,
+                "static_issues_found": len(static_issues),
+                "review_comment": final_report,
+                "proposed_fixes_count": len(result.get("proposed_fixes", []))
+            })
+            
+        except Exception as e:
+            print(f"Error reviewing file {filename} in webhook: {e}")
+            annotations.append({
+                "filename": filename,
+                "passed": False,
+                "error": str(e)
+            })
+        finally:
+            if os.path.exists(temp_file_path):
+                os.remove(temp_file_path)
+                
+    # Determine overall check success
+    overall_passed = all(a.get("passed", False) for a in annotations)
+    
+    return {
+        "status": "success",
+        "pr_number": payload.number,
+        "action": payload.action,
+        "overall_checks_passed": overall_passed,
+        "annotations": annotations
+    }
