@@ -1,4 +1,4 @@
-# Test webhook integration
+# Live webhook secure check verification
 def calculate_factorial(n: int) -> int:
     """
     Safely calculates the factorial of a non-negative integer.
